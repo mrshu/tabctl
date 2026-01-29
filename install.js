@@ -5,18 +5,19 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const NATIVE_HOST_PATH = path.resolve(__dirname, 'src', 'native-host.sh');
 const HOST_NAME = 'browsercli';
+const SRC_DIR = path.resolve(__dirname, 'src');
 
 const CHROME_EXTENSION_ID = process.argv[2] || null;
 
 const manifests = {
   chrome: {
     dir: path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts'),
-    content: () => ({
+    hostScript: path.join(SRC_DIR, 'native-host-chrome.sh'),
+    content: (hostPath) => ({
       name: HOST_NAME,
       description: 'BrowserCLI native messaging host',
-      path: NATIVE_HOST_PATH,
+      path: hostPath,
       type: 'stdio',
       allowed_origins: CHROME_EXTENSION_ID
         ? [`chrome-extension://${CHROME_EXTENSION_ID}/`]
@@ -25,10 +26,11 @@ const manifests = {
   },
   firefox: {
     dir: path.join(os.homedir(), 'Library', 'Application Support', 'Mozilla', 'NativeMessagingHosts'),
-    content: () => ({
+    hostScript: path.join(SRC_DIR, 'native-host-firefox.sh'),
+    content: (hostPath) => ({
       name: HOST_NAME,
       description: 'BrowserCLI native messaging host',
-      path: NATIVE_HOST_PATH,
+      path: hostPath,
       type: 'stdio',
       allowed_extensions: ['browsercli@browsercli'],
     }),
@@ -42,15 +44,15 @@ if (process.platform === 'linux') {
 }
 
 function install() {
-  // Ensure native host is executable
-  try {
-    fs.chmodSync(NATIVE_HOST_PATH, 0o755);
-  } catch (err) {
-    console.error(`Warning: Could not chmod native host: ${err.message}`);
-  }
-
   for (const [browser, manifest] of Object.entries(manifests)) {
-    const content = manifest.content();
+    // Ensure wrapper script is executable
+    try {
+      fs.chmodSync(manifest.hostScript, 0o755);
+    } catch (err) {
+      console.error(`Warning: Could not chmod ${manifest.hostScript}: ${err.message}`);
+    }
+
+    const content = manifest.content(manifest.hostScript);
 
     // Skip Chrome if no extension ID provided
     if (browser === 'chrome' && content.allowed_origins.length === 0) {

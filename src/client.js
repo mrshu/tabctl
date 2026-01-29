@@ -3,22 +3,23 @@
 const net = require('net');
 const fs = require('fs');
 
-const SOCKET_PATH = '/tmp/browsercli.sock';
+const KNOWN_BROWSERS = ['firefox', 'chrome'];
 const TIMEOUT = 10000;
 
-function request(msg) {
-  return new Promise((resolve, reject) => {
-    if (!fs.existsSync(SOCKET_PATH)) {
-      reject(new Error(
-        'Native host is not running. Make sure:\n' +
-        '  1. Run "node install.js" to register the native host\n' +
-        '  2. Open your browser with the BrowserCLI extension installed\n' +
-        '  3. The extension will auto-launch the native host'
-      ));
-      return;
-    }
+function socketPath(browser) {
+  return `/tmp/browsercli-${browser}.sock`;
+}
 
-    const conn = net.connect(SOCKET_PATH);
+function findSockets(filterBrowser) {
+  const browsers = filterBrowser ? [filterBrowser] : KNOWN_BROWSERS;
+  return browsers
+    .map((b) => ({ browser: b, path: socketPath(b) }))
+    .filter((s) => fs.existsSync(s.path));
+}
+
+function requestOne(socketFile, msg) {
+  return new Promise((resolve, reject) => {
+    const conn = net.connect(socketFile);
     let buf = '';
     let done = false;
 
@@ -59,79 +60,137 @@ function request(msg) {
       if (!done) {
         done = true;
         clearTimeout(timer);
-        if (err.code === 'ECONNREFUSED' || err.code === 'ENOENT') {
-          reject(new Error(
-            'Cannot connect to native host. Make sure your browser is open with the BrowserCLI extension.'
-          ));
-        } else {
-          reject(err);
-        }
+        reject(err);
       }
     });
   });
 }
 
+function request(msg, filterBrowser) {
+  const sockets = findSockets(filterBrowser);
+  if (sockets.length === 0) {
+    throw new Error(
+      'No browsers connected. Make sure:\n' +
+      '  1. Run "browsercli install" to register the native host\n' +
+      '  2. Open your browser with the BrowserCLI extension installed\n' +
+      '  3. The extension will auto-launch the native host'
+    );
+  }
+  // Use first available socket for single-browser commands
+  return requestOne(sockets[0].path, msg);
+}
+
+async function requestAll(msg, filterBrowser) {
+  const sockets = findSockets(filterBrowser);
+  if (sockets.length === 0) {
+    throw new Error(
+      'No browsers connected. Make sure:\n' +
+      '  1. Run "browsercli install" to register the native host\n' +
+      '  2. Open your browser with the BrowserCLI extension installed\n' +
+      '  3. The extension will auto-launch the native host'
+    );
+  }
+  const results = await Promise.allSettled(
+    sockets.map((s) => requestOne(s.path, msg).then((data) => ({ browser: s.browser, data })))
+  );
+  return results
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value);
+}
+
 async function listTabs(browser) {
-  const tabs = await request({ action: 'listTabs' });
-  return { tabs: tabs.map((t) => formatTab(t, browser)) };
+  const results = await requestAll({ action: 'listTabs' }, browser);
+  const tabs = [];
+  for (const r of results) {
+    for (const t of r.data) {
+      tabs.push(formatTab(t, r.browser));
+    }
+  }
+  return { tabs };
 }
 
 async function listWindows(browser) {
-  const windows = await request({ action: 'listWindows' });
-  return {
-    windows: windows.map((w) => ({
-      id: `w${w.id}`,
-      focused: w.focused,
-      incognito: w.incognito,
-      tabCount: w.tabs ? w.tabs.length : 0,
-    })),
-  };
+  const results = await requestAll({ action: 'listWindows' }, browser);
+  const windows = [];
+  for (const r of results) {
+    for (const w of r.data) {
+      windows.push({
+        id: `w${w.id}`,
+        browser: r.browser,
+        focused: w.focused,
+        incognito: w.incognito,
+        tabCount: w.tabs ? w.tabs.length : 0,
+      });
+    }
+  }
+  return { windows };
 }
 
 async function closeTab(id) {
-  const tabId = parseTabId(id);
-  await request({ action: 'closeTab', tabId });
+  const { browser, tabId } = parsePrefixedId(id);
+  await request({ action: 'closeTab', tabId }, browser);
   return { success: true, closed: id };
 }
 
 async function closeTabs(tabIds) {
-  const ids = tabIds.map(parseTabId);
-  await request({ action: 'closeTabs', tabIds: ids });
+  // Group by browser
+  const groups = {};
+  for (const id of tabIds) {
+    const { browser, tabId } = parsePrefixedId(id);
+    if (!groups[browser]) groups[browser] = [];
+    groups[browser].push(tabId);
+  }
+  for (const [browser, ids] of Object.entries(groups)) {
+    await request({ action: 'closeTabs', tabIds: ids }, browser);
+  }
   return { success: true, closed: tabIds, count: tabIds.length };
 }
 
 async function activateTab(id) {
-  const tabId = parseTabId(id);
-  await request({ action: 'activateTab', tabId });
+  const { browser, tabId } = parsePrefixedId(id);
+  await request({ action: 'activateTab', tabId }, browser);
   return { success: true, activated: id };
 }
 
 async function moveTab(id, windowId) {
-  const tabId = parseTabId(id);
+  const { browser, tabId } = parsePrefixedId(id);
   const winId = parseWindowId(windowId);
-  await request({ action: 'moveTab', tabId, windowId: winId });
+  await request({ action: 'moveTab', tabId, windowId: winId }, browser);
   return { success: true, moved: id, windowId };
 }
 
-async function openTab(url) {
-  const tab = await request({ action: 'openTab', url });
-  return { success: true, tab: formatTab(tab) };
+async function openTab(url, browser) {
+  const tab = await request({ action: 'openTab', url }, browser);
+  return { success: true, tab: formatTab(tab, browser) };
 }
 
 async function getStatus() {
-  return request({ action: 'status' });
+  const sockets = findSockets();
+  if (sockets.length === 0) {
+    return { browsers: [] };
+  }
+  const results = await Promise.allSettled(
+    sockets.map((s) => requestOne(s.path, { action: 'status' }).then((data) => ({ browser: s.browser, data })))
+  );
+  const browsers = results
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value.browser);
+  return { browsers };
 }
 
 // --- Helpers ---
 
-function formatTab(tab, filterBrowser) {
+function formatTab(tab, browser) {
   let domain = null;
   try {
     domain = new URL(tab.url).hostname;
   } catch {}
 
+  const prefix = browser ? `${browser}:` : '';
+
   const result = {
-    id: String(tab.id),
+    id: `${prefix}${tab.id}`,
+    browser: browser || null,
     windowId: `w${tab.windowId}`,
     index: tab.index,
     title: tab.title || '',
@@ -172,6 +231,22 @@ function formatAge(ms) {
   if (days > 0) return `${days}d ${hours % 24}h`;
   if (hours > 0) return `${hours}h ${minutes % 60}m`;
   return `${minutes}m`;
+}
+
+function parsePrefixedId(id) {
+  const str = String(id);
+  const colonIdx = str.indexOf(':');
+  if (colonIdx !== -1) {
+    const browser = str.slice(0, colonIdx);
+    const tabId = parseInt(str.slice(colonIdx + 1), 10);
+    if (isNaN(tabId)) throw new Error(`Invalid tab ID: ${id}`);
+    return { browser, tabId };
+  }
+  // No prefix — find which browser has this tab by trying all sockets
+  const tabId = parseInt(str, 10);
+  if (isNaN(tabId)) throw new Error(`Invalid tab ID: ${id}`);
+  const sockets = findSockets();
+  return { browser: sockets.length === 1 ? sockets[0].browser : null, tabId };
 }
 
 function parseTabId(id) {

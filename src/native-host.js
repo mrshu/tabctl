@@ -6,7 +6,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const SOCKET_PATH = '/tmp/browsercli.sock';
+const BROWSER_NAME = process.argv[2] || 'unknown';
+const SOCKET_PATH = `/tmp/browsercli-${BROWSER_NAME}.sock`;
 const REQUEST_TIMEOUT = 10000;
 
 // --- Native Messaging (stdin/stdout, length-prefixed JSON) ---
@@ -51,7 +52,7 @@ process.stdin.on('end', () => {
 // --- State ---
 
 let browserConnected = false;
-let browserName = null;
+let browserName = BROWSER_NAME;
 
 // Pending requests from CLI waiting for browser response: { requestId: { resolve, reject, timer } }
 const pending = {};
