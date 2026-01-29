@@ -1,0 +1,15 @@
+{
+  "name": "browsercli",
+  "version": "1.0.0",
+  "description": "Browser tab management CLI for Chrome and Firefox",
+  "bin": {
+    "browsercli": "./bin/browsercli.js"
+  },
+  "scripts": {
+    "start": "node bin/browsercli.js",
+    "install-host": "node install.js"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  }
+}
