@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "BrowserCLI",
+  "name": "tabctl",
   "version": "1.0.0",
-  "description": "Browser tab management for BrowserCLI",
+  "description": "Browser tab management for tabctl",
   "permissions": ["tabs", "storage", "nativeMessaging"],
   "background": {
     "service_worker": "background.js",
     "scripts": ["background.js"]
   },
   "browser_specific_settings": {
-    "gecko": { "id": "browsercli@browsercli" }
+    "gecko": { "id": "tabctl@tabctl" }
   },
   "icons": {
     "16": "icons/icon-16.png",

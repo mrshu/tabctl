@@ -1,12 +1,12 @@
 {
-  "name": "browsercli",
+  "name": "tabctl",
   "version": "1.0.0",
-  "description": "Browser tab management CLI for Chrome and Firefox",
+  "description": "Manage browser tabs from the command line",
   "bin": {
-    "browsercli": "./bin/browsercli.js"
+    "tabctl": "./bin/tabctl.js"
   },
   "scripts": {
-    "start": "node bin/browsercli.js",
+    "start": "node bin/tabctl.js",
     "install-host": "node install.js"
   },
   "dependencies": {

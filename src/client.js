@@ -7,7 +7,7 @@ const KNOWN_BROWSERS = ['firefox', 'chrome'];
 const TIMEOUT = 10000;
 
 function socketPath(browser) {
-  return `/tmp/browsercli-${browser}.sock`;
+  return `/tmp/tabctl-${browser}.sock`;
 }
 
 function findSockets(filterBrowser) {
@@ -71,8 +71,8 @@ function request(msg, filterBrowser) {
   if (sockets.length === 0) {
     throw new Error(
       'No browsers connected. Make sure:\n' +
-      '  1. Run "browsercli install" to register the native host\n' +
-      '  2. Open your browser with the BrowserCLI extension installed\n' +
+      '  1. Run "tabctl install" to register the native host\n' +
+      '  2. Open your browser with the tabctl extension installed\n' +
       '  3. The extension will auto-launch the native host'
     );
   }
@@ -85,8 +85,8 @@ async function requestAll(msg, filterBrowser) {
   if (sockets.length === 0) {
     throw new Error(
       'No browsers connected. Make sure:\n' +
-      '  1. Run "browsercli install" to register the native host\n' +
-      '  2. Open your browser with the BrowserCLI extension installed\n' +
+      '  1. Run "tabctl install" to register the native host\n' +
+      '  2. Open your browser with the tabctl extension installed\n' +
       '  3. The extension will auto-launch the native host'
     );
   }

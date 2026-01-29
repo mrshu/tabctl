@@ -1,4 +1,4 @@
-// BrowserCLI Extension - Background Script
+// tabctl Extension - Background Script
 // Uses native messaging to communicate with the native host process
 
 const api = globalThis.browser || globalThis.chrome;
@@ -188,14 +188,14 @@ async function handleCommand(msg) {
 
 function connectNative() {
   try {
-    port = api.runtime.connectNative('browsercli');
+    port = api.runtime.connectNative('tabctl');
   } catch (err) {
-    console.error('[browsercli] Failed to connect to native host:', err);
+    console.error('[tabctl] Failed to connect to native host:', err);
     scheduleReconnect();
     return;
   }
 
-  console.log('[browsercli] Connected to native host');
+  console.log('[tabctl] Connected to native host');
 
   // Send hello message so native host knows which browser we are
   port.postMessage({ type: 'hello', browser: browserName });
@@ -213,7 +213,7 @@ function connectNative() {
 
   port.onDisconnect.addListener(() => {
     const error = api.runtime.lastError;
-    console.log('[browsercli] Disconnected from native host', error ? error.message : '');
+    console.log('[tabctl] Disconnected from native host', error ? error.message : '');
     port = null;
     scheduleReconnect();
   });
@@ -227,11 +227,11 @@ function scheduleReconnect() {
 
 // --- Startup ---
 
-console.log('[browsercli] Background script starting...');
+console.log('[tabctl] Background script starting...');
 initTracking().then(() => {
-  console.log('[browsercli] Tracking initialized, connecting to native host...');
+  console.log('[tabctl] Tracking initialized, connecting to native host...');
   connectNative();
 }).catch((err) => {
-  console.error('[browsercli] Init error:', err);
+  console.error('[tabctl] Init error:', err);
   connectNative();
 });

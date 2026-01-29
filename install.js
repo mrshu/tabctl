@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const HOST_NAME = 'browsercli';
+const HOST_NAME = 'tabctl';
 const SRC_DIR = path.resolve(__dirname, 'src');
 const NODE_PATH = process.execPath;
 
@@ -36,7 +36,7 @@ function generateWrapper(browser) {
 function chromeManifest(hostPath) {
   return {
     name: HOST_NAME,
-    description: 'BrowserCLI native messaging host',
+    description: 'tabctl native messaging host',
     path: hostPath,
     type: 'stdio',
     allowed_origins: CHROME_EXTENSION_ID
@@ -48,10 +48,10 @@ function chromeManifest(hostPath) {
 function firefoxManifest(hostPath) {
   return {
     name: HOST_NAME,
-    description: 'BrowserCLI native messaging host',
+    description: 'tabctl native messaging host',
     path: hostPath,
     type: 'stdio',
-    allowed_extensions: ['browsercli@browsercli'],
+    allowed_extensions: ['tabctl@tabctl'],
   };
 }
 
@@ -68,7 +68,7 @@ function install() {
   for (const [browser, config] of Object.entries(browsers)) {
     // Skip Chrome if no extension ID
     if (browser === 'chrome' && !CHROME_EXTENSION_ID) {
-      console.log('Skipping Chrome (no extension ID provided). Usage: browsercli install <chrome-extension-id>');
+      console.log('Skipping Chrome (no extension ID provided). Usage: tabctl install <chrome-extension-id>');
       continue;
     }
 

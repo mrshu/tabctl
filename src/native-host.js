@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const BROWSER_NAME = process.argv[2] || 'unknown';
-const SOCKET_PATH = `/tmp/browsercli-${BROWSER_NAME}.sock`;
+const SOCKET_PATH = `/tmp/tabctl-${BROWSER_NAME}.sock`;
 const REQUEST_TIMEOUT = 10000;
 
 // --- Native Messaging (stdin/stdout, length-prefixed JSON) ---
@@ -175,7 +175,7 @@ process.on('exit', () => {
 
 // --- Logging (stderr only, stdout is for native messaging) ---
 
-const LOG_FILE = '/tmp/browsercli-native.log';
+const LOG_FILE = '/tmp/tabctl-native.log';
 
 function log(msg) {
   const line = `[${new Date().toISOString()}] ${msg}\n`;

@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 program
-  .name('browsercli')
+  .name('tabctl')
   .description('Browser tab management CLI')
   .version('1.0.0');
 
