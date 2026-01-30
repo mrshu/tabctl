@@ -270,4 +270,11 @@ module.exports = {
   moveTab,
   openTab,
   getStatus,
+  _internal: {
+    formatAge,
+    formatTab,
+    parsePrefixedId,
+    parseTabId,
+    parseWindowId,
+  },
 };
