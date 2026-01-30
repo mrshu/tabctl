@@ -7,6 +7,7 @@ const STORAGE_KEY = 'tabTracking';
 
 let port = null;
 let browserName = 'unknown';
+const tabUrls = {};
 
 // Detect browser
 if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getBrowserInfo) {
@@ -30,15 +31,17 @@ async function saveTracking(data) {
   await api.storage.local.set({ [STORAGE_KEY]: data });
 }
 
-async function updateTracking(tabId, updates) {
+async function updateTracking(url, updates) {
+  if (!url) return;
   const data = await loadTracking();
-  data[tabId] = { ...(data[tabId] || {}), ...updates };
+  data[url] = { ...(data[url] || {}), ...updates };
   await saveTracking(data);
 }
 
-async function removeTracking(tabId) {
+async function removeTracking(url) {
+  if (!url) return;
   const data = await loadTracking();
-  delete data[tabId];
+  delete data[url];
   await saveTracking(data);
 }
 
@@ -49,20 +52,13 @@ async function initTracking() {
   let changed = false;
 
   for (const tab of tabs) {
-    if (!data[tab.id]) {
-      data[tab.id] = {
+    tabUrls[tab.id] = tab.url;
+    if (tab.url && !data[tab.url]) {
+      data[tab.url] = {
         createdAt: now,
         activationCount: 0,
         navigationCount: 0,
       };
-      changed = true;
-    }
-  }
-
-  const tabIds = new Set(tabs.map((t) => t.id));
-  for (const id of Object.keys(data)) {
-    if (!tabIds.has(parseInt(id, 10))) {
-      delete data[id];
       changed = true;
     }
   }
@@ -73,7 +69,8 @@ async function initTracking() {
 // --- Event Listeners ---
 
 api.tabs.onCreated.addListener(async (tab) => {
-  await updateTracking(tab.id, {
+  tabUrls[tab.id] = tab.url;
+  await updateTracking(tab.url, {
     createdAt: Date.now(),
     activationCount: 0,
     navigationCount: 0,
@@ -81,9 +78,11 @@ api.tabs.onCreated.addListener(async (tab) => {
 });
 
 api.tabs.onActivated.addListener(async (activeInfo) => {
+  const url = tabUrls[activeInfo.tabId];
+  if (!url) return;
   const data = await loadTracking();
-  const existing = data[activeInfo.tabId] || {};
-  await updateTracking(activeInfo.tabId, {
+  const existing = data[url] || {};
+  await updateTracking(url, {
     lastActivated: Date.now(),
     activationCount: (existing.activationCount || 0) + 1,
   });
@@ -91,17 +90,28 @@ api.tabs.onActivated.addListener(async (activeInfo) => {
 
 api.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   if (changeInfo.url) {
+    const oldUrl = tabUrls[tabId];
+    const newUrl = changeInfo.url;
+    tabUrls[tabId] = newUrl;
+
     const data = await loadTracking();
-    const existing = data[tabId] || {};
-    await updateTracking(tabId, {
+    const existing = data[oldUrl] || {};
+    // Migrate tracking from old URL to new URL, preserving createdAt
+    if (oldUrl && oldUrl !== newUrl) {
+      delete data[oldUrl];
+    }
+    data[newUrl] = {
+      ...existing,
       lastUpdated: Date.now(),
       navigationCount: (existing.navigationCount || 0) + 1,
-    });
+    };
+    await saveTracking(data);
   }
 });
 
 api.tabs.onRemoved.addListener(async (tabId) => {
-  await removeTracking(tabId);
+  delete tabUrls[tabId];
+  // Keep URL-keyed storage data for re-association after restart
 });
 
 // --- Command Handlers ---
@@ -123,7 +133,7 @@ async function handleCommand(msg) {
         discarded: t.discarded,
         status: t.status,
         openerTabId: t.openerTabId,
-        tracking: tracking[t.id] || null,
+        tracking: tracking[t.url] || null,
       }));
     }
 
@@ -161,7 +171,7 @@ async function handleCommand(msg) {
         active: tab.active,
         pinned: tab.pinned,
         status: tab.status,
-        tracking: tracking[tab.id] || null,
+        tracking: tracking[tab.url] || null,
       };
     }
 
