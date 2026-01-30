@@ -21,22 +21,34 @@ function outputTable(tabs) {
   }
   const maxTitle = 40;
   const maxUrl = 50;
+  const minId = 8;
+  const maxId = 24;
+  const sep = '  ';
+  const idWidth = Math.min(
+    maxId,
+    Math.max(
+      minId,
+      ...tabs.map((tab) => String(tab.id || '').length)
+    )
+  );
+  const totalWidth =
+    idWidth + maxTitle + maxUrl + 8 + 10 + sep.length * 4;
 
   console.log(
-    pad('ID', 8) +
-    pad('Title', maxTitle) +
-    pad('URL', maxUrl) +
-    pad('Active', 8) +
+    pad('ID', idWidth) + sep +
+    pad('Title', maxTitle) + sep +
+    pad('URL', maxUrl) + sep +
+    pad('Active', 8) + sep +
     'Age'
   );
-  console.log('-'.repeat(8 + maxTitle + maxUrl + 8 + 10));
+  console.log('-'.repeat(totalWidth));
 
   for (const tab of tabs) {
     console.log(
-      pad(tab.id, 8) +
-      pad(truncate(tab.title, maxTitle - 2), maxTitle) +
-      pad(truncate(tab.url, maxUrl - 2), maxUrl) +
-      pad(tab.active ? 'yes' : 'no', 8) +
+      pad(tab.id, idWidth) + sep +
+      pad(truncate(tab.title, maxTitle - 2), maxTitle) + sep +
+      pad(truncate(tab.url, maxUrl - 2), maxUrl) + sep +
+      pad(tab.active ? 'yes' : 'no', 8) + sep +
       (tab.age || '-')
     );
   }
