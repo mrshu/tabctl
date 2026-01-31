@@ -94,9 +94,15 @@ program
   .description('List all tabs')
   .option('-b, --browser <browser>', 'Filter by browser (chrome, firefox)')
   .option('-f, --format <format>', 'Output format (json, table)', 'json')
+  .option('-s, --sort <sort>', 'Sort by age (oldest, newest)')
   .action(async (opts) => {
     try {
       const data = await client.listTabs(opts.browser);
+      if (opts.sort === 'oldest') {
+        data.tabs.sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? -1 : 1);
+      } else if (opts.sort === 'newest') {
+        data.tabs.sort((a, b) => (a.createdAt || '') > (b.createdAt || '') ? -1 : 1);
+      }
       if (opts.format === 'table') {
         outputTable(data.tabs);
       } else {
