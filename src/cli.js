@@ -94,7 +94,7 @@ program
   .description('List all tabs')
   .option('-b, --browser <browser>', 'Filter by browser (chrome, firefox)')
   .option('-f, --format <format>', 'Output format (json, table)', 'json')
-  .option('-s, --sort <sort>', 'Sort by: oldest, newest, title')
+  .option('-s, --sort <sort>', 'Sort by: oldest, newest, title, url, domain')
   .action(async (opts) => {
     try {
       const data = await client.listTabs(opts.browser);
@@ -104,6 +104,10 @@ program
         data.tabs.sort((a, b) => (a.createdAt || '') > (b.createdAt || '') ? -1 : 1);
       } else if (opts.sort === 'title') {
         data.tabs.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      } else if (opts.sort === 'url') {
+        data.tabs.sort((a, b) => (a.url || '').localeCompare(b.url || ''));
+      } else if (opts.sort === 'domain') {
+        data.tabs.sort((a, b) => (a.domain || '').localeCompare(b.domain || ''));
       }
       if (opts.format === 'table') {
         outputTable(data.tabs);
